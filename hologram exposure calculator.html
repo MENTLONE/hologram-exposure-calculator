@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A simple hologram exposure calculator for estimating photopolymer recording exposure time.">
+  <title>Hologram Exposure Calculator</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08110f;
+      --panel: #101d19;
+      --panel-2: #14251f;
+      --line: #29453a;
+      --text: #edf7f0;
+      --muted: #a4b9ad;
+      --green: #73f0a2;
+      --green-dark: #143d2a;
+      --amber: #ffd28a;
+      --shadow: 0 18px 48px rgba(0, 0, 0, .25);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 15% 0%, rgba(39, 116, 75, .18), transparent 42%),
+        linear-gradient(180deg, #08110f, #0a1511 60%, #08110f);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+    .wrap { width: min(1040px, calc(100% - 32px)); margin: 0 auto; padding: 44px 0 28px; }
+    header { margin-bottom: 26px; }
+    .eyebrow {
+      color: var(--green); font-size: .78rem; letter-spacing: .16em;
+      text-transform: uppercase; font-weight: 800;
+    }
+    h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.045em; margin: 10px 0 14px; }
+    .intro { color: var(--muted); max-width: 700px; font-size: 1.04rem; margin: 0; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); gap: 20px; align-items: start; }
+    .card {
+      background: linear-gradient(160deg, rgba(20, 37, 31, .98), rgba(13, 25, 21, .98));
+      border: 1px solid var(--line); border-radius: 20px; padding: 24px; box-shadow: var(--shadow);
+    }
+    h2 { margin: 0 0 18px; font-size: 1.15rem; letter-spacing: -.015em; }
+    .field { margin: 0 0 22px; }
+    .field-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    label { font-weight: 650; font-size: .94rem; }
+    .unit { color: var(--muted); font-size: .82rem; white-space: nowrap; }
+    input, select {
+      width: 100%; min-height: 48px; border: 1px solid #365649; border-radius: 11px;
+      background: #091510; color: var(--text); padding: 11px 13px; font: inherit;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(115, 240, 162, .12); }
+    .hint { margin: 7px 0 0; color: var(--muted); font-size: .82rem; }
+    .result {
+      border: 1px solid #397552; background: linear-gradient(145deg, rgba(28, 76, 49, .55), rgba(11, 31, 21, .7));
+      border-radius: 16px; padding: 20px; margin-bottom: 18px;
+    }
+    .result-label { color: #bce9cb; font-size: .84rem; font-weight: 700; }
+    .result-number { font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.12; font-weight: 850; letter-spacing: -.05em; margin: 7px 0 8px; overflow-wrap: anywhere; }
+    .result-sub { color: #c2d9ca; font-size: .9rem; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+    .stat { background: rgba(4, 14, 10, .5); border: 1px solid var(--line); border-radius: 12px; padding: 13px; }
+    .stat-label { color: var(--muted); font-size: .79rem; }
+    .stat-value { font-weight: 750; font-size: 1.1rem; margin-top: 3px; overflow-wrap: anywhere; }
+    .equation { background: #091510; border: 1px dashed #365649; border-radius: 12px; padding: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88rem; color: #cce8d6; overflow-wrap: anywhere; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    button {
+      border: 1px solid #47785a; border-radius: 10px; padding: 10px 14px; cursor: pointer;
+      font: inherit; font-weight: 750; color: var(--text); background: #183b29;
+    }
+    button:hover { background: #22543a; }
+    button.secondary { background: transparent; border-color: var(--line); color: var(--muted); }
+    .notice { border-left: 3px solid var(--amber); background: rgba(255, 210, 138, .07); padding: 13px 15px; border-radius: 0 10px 10px 0; color: #e5d4b6; font-size: .88rem; margin-top: 18px; }
+    .section { margin-top: 20px; }
+    .section p, .section li { color: var(--muted); }
+    .section ul { padding-left: 20px; margin-bottom: 0; }
+    footer { color: #80978a; font-size: .8rem; text-align: center; padding: 28px 0 0; }
+    @media (max-width: 760px) {
+      .wrap { padding-top: 28px; }
+      .layout { grid-template-columns: 1fr; }
+      .card { padding: 19px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div class="eyebrow">Optical bench tool · Version 1.0</div>
+      <h1>Hologram Exposure<br>Calculator</h1>
+      <p class="intro">Estimate the exposure time for recording a hologram. Enter the laser power that actually reaches the film, the illuminated area, and your target recording dose.</p>
+    </header>
+
+    <div class="layout">
+      <section class="card" aria-labelledby="inputs-title">
+        <h2 id="inputs-title">Recording parameters</h2>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="power">Laser power at film</label>
+            <span class="unit">mW</span>
+          </div>
+          <input id="power" type="number" min="0.001" max="100000" step="any" value="5" inputmode="decimal">
+          <p class="hint">Use power measured at the film, after losses from optics and beam splitters.</p>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="area">Illuminated film area</label>
+            <span class="unit">cm²</span>
+          </div>
+          <input id="area" type="number" min="0.001" max="1000000" step="any" value="100" inputmode="decimal">
+          <p class="hint">For example, a fully illuminated 10 × 10 cm square is 100 cm². Use the area actually illuminated, not automatically the sheet size.</p>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="dose">Target exposure dose</label>
+            <span class="unit">mJ/cm²</span>
+          </div>
+          <input id="dose" type="number" min="0.001" max="1000000" step="any" value="20" inputmode="decimal">
+          <p class="hint">Starting reference for Bayfol HX200 reflection holograms near 633 nm: about 20 mJ/cm². Your 635 nm laser is close to that wavelength.</p>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="wavelength">Laser wavelength</label>
+            <span class="unit">nm</span>
+          </div>
+          <select id="wavelength">
+            <option value="635" selected>635 nm — red LitiHolo laser</option>
+            <option value="633">633 nm — datasheet reference</option>
+            <option value="532">532 nm — green</option>
+            <option value="457">457 nm — blue</option>
+            <option value="custom">Other / custom wavelength</option>
+          </select>
+          <p class="hint" id="wavelengthHint">Wavelength is shown for reference; it does not automatically change the dose.</p>
+        </div>
+
+        <div class="field" id="customWavelengthWrap" hidden>
+          <div class="field-head">
+            <label for="customWavelength">Custom wavelength</label>
+            <span class="unit">nm</span>
+          </div>
+          <input id="customWavelength" type="number" min="1" max="100000" step="any" value="635">
+        </div>
+
+        <div class="actions">
+          <button type="button" id="reset">Reset example</button>
+          <button type="button" class="secondary" id="copy">Copy results</button>
+        </div>
+      </section>
+
+      <aside class="card" aria-labelledby="results-title" aria-live="polite">
+        <h2 id="results-title">Estimated exposure</h2>
+        <div class="result">
+          <div class="result-label">EXPOSURE TIME</div>
+          <div class="result-number" id="time">6 min 40 sec</div>
+          <div class="result-sub" id="timeDecimal">400 seconds</div>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">Power density</div>
+            <div class="stat-value" id="irradiance">0.050 mW/cm²</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Total energy on area</div>
+            <div class="stat-value" id="energy">2.00 J</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Dose target</div>
+            <div class="stat-value" id="doseOutput">20 mJ/cm²</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Wavelength</div>
+            <div class="stat-value" id="wavelengthOutput">635 nm</div>
+          </div>
+        </div>
+
+        <div class="equation">
+          Exposure time (s) = dose (mJ/cm²) × area (cm²) ÷ power (mW)
+        </div>
+
+        <div class="notice">
+          <strong>Important:</strong> This is an ideal estimate assuming uniform illumination and stable power. A Denisyuk hologram's actual exposure can differ because of object reflectivity, beam geometry, optical losses, film handling, and recording conditions. Test on a small sample first.
+        </div>
+      </aside>
+    </div>
+
+    <section class="card section">
+      <h2>How to use this calculator</h2>
+      <ul>
+        <li><strong>Measure power at the film</strong> if you can. The laser's label rating is not necessarily the power that reaches the recording material.</li>
+        <li><strong>Estimate the illuminated area.</strong> A 10 × 10 cm sheet has an area of 100 cm², but the beam may illuminate only part of it.</li>
+        <li><strong>Choose a target dose</strong> based on the photopolymer manufacturer's documentation and refine it with test exposures.</li>
+        <li><strong>Keep the setup still.</strong> Vibration during exposure can destroy the fine interference pattern.</li>
+      </ul>
+      <p class="hint">Bayfol HX200 datasheet reference: the reflection-hologram table lists approximately 20 mJ/cm² at 633 nm and 532 nm. Follow the current manufacturer documentation for handling, exposure limits, and processing.</p>
+    </section>
+
+    <footer>
+      Educational estimate only · Always follow laser safety procedures and the recording material manufacturer's instructions.
+    </footer>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const defaults = { power: "5", area: "100", dose: "20", wavelength: "635", customWavelength: "635" };
+
+    function fmt(value, maxDigits = 3) {
+      return Number(value).toLocaleString(undefined, { maximumFractionDigits: maxDigits });
+    }
+
+    function formatTime(seconds) {
+      if (!Number.isFinite(seconds) || seconds < 0) return "—";
+      if (seconds < 60) return `${fmt(seconds, 2)} sec`;
+      if (seconds < 3600) {
+        const minutes = Math.floor(seconds / 60);
+        const remainder = seconds - minutes * 60;
+        return `${minutes} min ${fmt(remainder, 1)} sec`;
+      }
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const remainder = seconds % 60;
+      return `${hours} hr ${minutes} min ${Math.round(remainder)} sec`;
+    }
+
+    function getWavelength() {
+      return $("wavelength").value === "custom"
+        ? Number($("customWavelength").value)
+        : Number($("wavelength").value);
+    }
+
+    function calculate() {
+      const power = Number($("power").value);
+      const area = Number($("area").value);
+      const dose = Number($("dose").value);
+      const wavelength = getWavelength();
+      const valid = [power, area, dose, wavelength].every(Number.isFinite) &&
+        power > 0 && area > 0 && dose > 0 && wavelength > 0;
+
+      $("customWavelengthWrap").hidden = $("wavelength").value !== "custom";
+      $("wavelengthOutput").textContent = Number.isFinite(wavelength) && wavelength > 0 ? `${fmt(wavelength, 1)} nm` : "—";
+
+      if (!valid) {
+        $("time").textContent = "Check inputs";
+        $("timeDecimal").textContent = "Enter positive numbers in all fields.";
+        $("irradiance").textContent = "—";
+        $("energy").textContent = "—";
+        $("doseOutput").textContent = "—";
+        return;
+      }
+
+      const irradiance = power / area;          // mW/cm²
+      const seconds = dose / irradiance;        // (mJ/cm²)/(mW/cm²) = seconds
+      const energyJ = (dose * area) / 1000;     // mJ to J
+
+      $("time").textContent = formatTime(seconds);
+      $("timeDecimal").textContent = `${fmt(seconds, 2)} seconds`;
+      $("irradiance").textContent = `${fmt(irradiance, 5)} mW/cm²`;
+      $("energy").textContent = `${fmt(energyJ, 3)} J`;
+      $("doseOutput").textContent = `${fmt(dose, 3)} mJ/cm²`;
+      $("wavelengthHint").textContent = "Wavelength is shown for reference; it does not automatically change the dose. Confirm the appropriate dose for your material.";
+    }
+
+    ["power", "area", "dose", "wavelength", "customWavelength"].forEach(id => {
+      $(id).addEventListener("input", calculate);
+      $(id).addEventListener("change", calculate);
+    });
+
+    $("reset").addEventListener("click", () => {
+      Object.entries(defaults).forEach(([id, value]) => $(id).value = value);
+      calculate();
+    });
+
+    $("copy").addEventListener("click", async () => {
+      const report = [
+        "Hologram Exposure Calculator",
+        `Laser power at film: ${$("power").value} mW`,
+        `Illuminated area: ${$("area").value} cm²`,
+        `Target dose: ${$("dose").value} mJ/cm²`,
+        `Wavelength: ${$("wavelengthOutput").textContent}`,
+        `Power density: ${$("irradiance").textContent}`,
+        `Estimated exposure: ${$("time").textContent} (${ $("timeDecimal").textContent })`,
+        `Total energy: ${$("energy").textContent}`,
+        "Estimate only; verify with test exposures and the film manufacturer's instructions."
+      ].join("\n");
+      const button = $("copy");
+      try {
+        await navigator.clipboard.writeText(report);
+        button.textContent = "Copied!";
+        setTimeout(() => button.textContent = "Copy results", 1400);
+      } catch {
+        window.prompt("Copy your results:", report);
+      }
+    });
+
+    calculate();
+  </script>
+</body>
+</html>
